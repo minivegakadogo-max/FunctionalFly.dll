@@ -8,12 +8,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flypremium-windows-build
+  cancel-in-progress: true
+
 jobs:
   build-client:
     runs-on: windows-2022
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup XMake
         uses: xmake-io/github-action-setup-xmake@v1
@@ -22,6 +29,9 @@ jobs:
         uses: ZhongRuoyu/setup-llvm@v0
         with:
           llvm-version: 22
+
+      - name: Update XMake repositories
+        run: xmake repo -u
 
       - name: Configure client x64
         run: xmake f -c -y -p windows -a x64 -m release --target_type=client
@@ -41,12 +51,7 @@ jobs:
           if (-not $dll) { throw 'FlyPremium.dll was not produced.' }
           New-Item -ItemType Directory -Force dist/FlyPremium | Out-Null
           Copy-Item $dll.FullName dist/FlyPremium/FlyPremium.dll -Force
-          $manifest = Get-ChildItem -Path $dll.Directory.FullName -Filter manifest.json -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($manifest) {
-            Copy-Item $manifest.FullName dist/FlyPremium/manifest.json -Force
-          } else {
-            Copy-Item manifest.json dist/FlyPremium/manifest.json -Force
-          }
+          Copy-Item manifest.json dist/FlyPremium/manifest.json -Force
 
       - name: Upload DLL, manifest and build log
         if: always()
