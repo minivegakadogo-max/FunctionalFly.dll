@@ -1,0 +1,7 @@
+{
+  "name": "FlyPremium",
+  "entry": "FlyPremium.dll",
+  "version": "0.2.0",
+  "type": "native",
+  "platform": "win-x64"
+}
