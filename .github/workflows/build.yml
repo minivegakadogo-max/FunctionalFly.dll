@@ -1,0 +1,59 @@
+name: Build FlyPremium (Bedrock 26.60)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-client:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup XMake
+        uses: xmake-io/github-action-setup-xmake@v1
+
+      - name: Setup LLVM 22
+        uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: 22
+
+      - name: Configure client x64
+        run: xmake f -c -y -p windows -a x64 -m release --target_type=client
+
+      - name: Build
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          xmake -v -y 2>&1 | Tee-Object -FilePath build/build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stage packaged mod
+        if: success()
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem -Path bin -Filter FlyPremium.dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $dll) { throw 'FlyPremium.dll was not produced.' }
+          New-Item -ItemType Directory -Force dist/FlyPremium | Out-Null
+          Copy-Item $dll.FullName dist/FlyPremium/FlyPremium.dll -Force
+          $manifest = Get-ChildItem -Path $dll.Directory.FullName -Filter manifest.json -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($manifest) {
+            Copy-Item $manifest.FullName dist/FlyPremium/manifest.json -Force
+          } else {
+            Copy-Item manifest.json dist/FlyPremium/manifest.json -Force
+          }
+
+      - name: Upload DLL, manifest and build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlyPremium-bedrock-26.60-win-x64
+          path: |
+            dist/FlyPremium/**
+            build/build.log
+          if-no-files-found: warn
