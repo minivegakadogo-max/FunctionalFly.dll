@@ -1,0 +1,6 @@
+.build/
+build/windows/
+build/x64/
+bin/
+dist/
+*.log
