@@ -25,6 +25,14 @@ jobs:
       - name: Setup XMake
         uses: xmake-io/github-action-setup-xmake@v1
 
+      - name: Cache XMake packages
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/.xmake
+          key: xmake-${{ runner.os }}-${{ hashFiles('xmake.lua', 'build/xmake-repo/**') }}
+          restore-keys: |
+            xmake-${{ runner.os }}-
+
       - name: Setup LLVM 22
         uses: ZhongRuoyu/setup-llvm@v0
         with:
@@ -34,7 +42,11 @@ jobs:
         run: xmake repo -u
 
       - name: Configure client x64
-        run: xmake f -c -y -p windows -a x64 -m release --target_type=client
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          xmake f -c -y -p windows -a x64 -m release --target_type=client 2>&1 | Tee-Object -FilePath build/configure.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build
         shell: pwsh
@@ -61,4 +73,5 @@ jobs:
           path: |
             dist/FlyPremium/**
             build/build.log
+            build/configure.log
           if-no-files-found: warn
